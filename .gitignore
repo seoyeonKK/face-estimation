@@ -102,3 +102,11 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+checkpoints_final_2/
+checkpoints/
+appa-real/
+dataset/
+utkface/
+checkpoints_test/
+
