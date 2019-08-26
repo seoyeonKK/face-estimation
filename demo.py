@@ -188,7 +188,8 @@ def main():
                                                     "neutral" if emotion is None else emotion[2][0])
                         listA = label.split(",")
                         print(listA)
-
+                        socket.emit('client1', listA)
+                        
                         while True:
                             # sleep(0.5)
 
