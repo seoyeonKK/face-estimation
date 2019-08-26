@@ -20,9 +20,12 @@ pretrained_model = "https://s3.ap-northeast-2.amazonaws.com/sopt-seminar/weights
 modhash = "306e44200d3f632a5dccac153c2966f2"
 font = cv2.FONT_HERSHEY_SIMPLEX
 imgNum = 0
+flag = False
 
 def on_finish(*args):
     print("on finish")
+    global flag
+    flag = True
 
 def get_args():
     parser = argparse.ArgumentParser(description="This script detects faces from web cam input, "
@@ -189,13 +192,18 @@ def main():
                         listA = label.split(",")
                         print(listA)
                         socket.emit('client1', listA)
-                        
+
                         while True:
                             # sleep(0.5)
 
                             # Listen
                             socket.on('finish', on_finish)
                             socket.wait(seconds=1)
+
+                            global flag
+                            if flag is True:
+                                flag = False
+                                break
 
             # 웹캠 실행 시
             key = cv2.waitKey(-1) if image_dir else cv2.waitKey(30)
