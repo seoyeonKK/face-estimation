@@ -10,6 +10,8 @@ from emotion_api import get_emotion
 import tensorflow as tf
 from socketIO_client_nexus import SocketIO, LoggingNamespace
 import os
+from time import sleep
+
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 session = tf.Session(config = config)
@@ -18,6 +20,9 @@ pretrained_model = "https://s3.ap-northeast-2.amazonaws.com/sopt-seminar/weights
 modhash = "306e44200d3f632a5dccac153c2966f2"
 font = cv2.FONT_HERSHEY_SIMPLEX
 imgNum = 0
+
+def on_finish(*args):
+    print("on finish")
 
 def get_args():
     parser = argparse.ArgumentParser(description="This script detects faces from web cam input, "
@@ -84,8 +89,8 @@ def yield_images():
             cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 3, 4, 0)
             cv2.putText(img, 'Detected Face', (x - 5, y - 5), font, 0.9, (255, 255, 0), 2)
             cnt += 1
-            #print("in")
-            if cnt >= 15 and h > 100 and w > 100 :
+
+            if cnt >= 15 and h > 100 and w > 100:
                 global imgNum
                 r = max(w, h) / 2
                 centerx = x + w / 2
@@ -97,8 +102,7 @@ def yield_images():
                 # 이미지를 저장
                 cv2.imwrite("thumbnail" + "0" + ".jpg", cropped)
                 # emotion = get_emotion(imgNum)#emotion_api.py에서 가져온다.
-                # print(emotion)
-                cnt=0
+                cnt = 0
                 # 영상을 출력하는 소스
                 cv2.imshow('frame', img)
                 key = cv2.waitKey(30)
@@ -111,34 +115,28 @@ def yield_images_from_dir(image_dir):
 
     for image_path in image_dir.glob("*.*"):
         img = cv2.imread(str(image_path), 1)
-
+        print(image_path)
         if img is not None:
             h, w, _ = img.shape
             r = 640 / max(w, h)
             yield cv2.resize(img, (int(w * r), int(h * r)))
 
 def main():
-    with SocketIO('localhost', 3000, namespace="/") as socket:
+        socket = SocketIO('localhost', 3002, LoggingNamespace)
         print("connect")
+
         args = get_args()
         depth = args.depth
         k = args.width
-        # model_name = args.model_name
         weight_file = args.weight_file
         margin = args.margin
         image_dir = args.image_dir
         if not weight_file:
-            weight_file = get_file("checkpoints_final/weights.78-3.51.hdf5", pretrained_model,
+            weight_file = get_file("checkpoints/weights.78-3.51.hdf5", pretrained_model,
                                    cache_subdir="pretrained_models",
                                    file_hash=modhash, cache_dir=Path(__file__).resolve().parent)
         # for face detection
         detector = dlib.get_frontal_face_detector()
-
-        # 기존 코드 age_estimation
-        # # load model and weights
-        # model = get_model(model_name=model_name)
-        # model.load_weights(weight_file)
-        # img_size = model.input.shape.as_list()[1]
 
         # age and gender
         # load model and weights
@@ -175,6 +173,7 @@ def main():
                 print(int(predicted_ages))
                 print(predicted_genders)
                 print(emotion)
+                print()
                 file = './thumbnail0.jpg'
                 if os.path.isfile(file):
                     os.remove(file)
@@ -182,18 +181,22 @@ def main():
                 if len(age_list) == 2:
                     predicted_ages_final = (age_list[0] + age_list[1])/2
                     print(int(predicted_ages_final))
-                    age_list=[]
+                    age_list = []
                     for i, d in enumerate(detected):
                         label = "{}, {}, {}".format(int(predicted_ages_final),
                                                     "f" if predicted_genders[i][0] < 0.8 else "m",
                                                     "neutral" if emotion is None else emotion[2][0])
                         listA = label.split(",")
                         print(listA)
-                        socket.emit('client1', listA)  # 그냥 label하면 안되나? {my :label}
-                        # socket.wait()
 
-                # emotion = get_emotion(imgNum)
-                # 웹캠 실행 시
+                        while True:
+                            # sleep(0.5)
+
+                            # Listen
+                            socket.on('finish', on_finish)
+                            socket.wait(seconds=1)
+
+            # 웹캠 실행 시
             key = cv2.waitKey(-1) if image_dir else cv2.waitKey(30)
 
             if key == 27:  # ESC
