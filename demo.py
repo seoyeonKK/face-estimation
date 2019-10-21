@@ -10,6 +10,13 @@ from emotion_api import get_emotion
 import tensorflow as tf
 from socketIO_client_nexus import SocketIO, LoggingNamespace
 import os
+from urllib.request import urlopen
+from bs4 import BeautifulSoup
+import re
+
+html = urlopen("https://weather.naver.com/rgn/townWetr.nhn?naverRgnCd=09320105")
+bsObject = BeautifulSoup(html, "html.parser")
+
 from time import sleep
 
 config = tf.ConfigProto()
@@ -185,10 +192,15 @@ def main():
                     predicted_ages_final = (age_list[0] + age_list[1])/2
                     print(int(predicted_ages_final))
                     age_list = []
+                    crawling = bsObject.body.find_all("em")[2].get_text()
+                    crawling_num = re.findall("\d+", crawling)
+                    crawling_dust = bsObject.body.find_all("strong")[3].get_text()
+                    crawling_text = bsObject.body.find_all("em")[3].get_text()
+
                     for i, d in enumerate(detected):
-                        label = "{}, {}, {}".format(int(predicted_ages_final),
-                                                    "f" if predicted_genders[i][0] < 0.8 else "m",
-                                                    "neutral" if emotion is None else emotion[2][0])
+                        label = "{},{},{},{},{},{}".format(int(predicted_ages_final),
+                                                    "f" if predicted_genders[i][0] < 0.6 else "m",
+                                                    "neutral" if emotion is None else emotion[2][0], crawling_num[0], crawling_dust, crawling_text)
                         listA = label.split(",")
                         print(listA)
                         socket.emit('client1', listA)
